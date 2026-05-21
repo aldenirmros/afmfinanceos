@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#f8fafc"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
-<meta name="apple-mobile-web-app-title" content="FinanceOS"/>
-<meta name="description" content="Gestor Financeiro Pessoal — FinanceOS"/>
-<title>FinanceOS</title>
+<meta name="apple-mobile-web-app-title" content="AFM FinanceOS"/>
+<meta name="description" content="Gestor Financeiro Pessoal — AFM FinanceOS"/>
+<title>AFM FinanceOS</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
 /* ═══════════════════════════════════════════════════════════════
@@ -357,7 +357,7 @@ header{position:sticky;top:0;z-index:40;background:rgba(248,250,252,.82);border-
         <circle cx="28" cy="4" r="2.2" fill="#fff"/>
       </svg>
     </div>
-    <div class="login-title">FinanceOS</div>
+    <div class="login-title">AFM FinanceOS</div>
     <div class="login-sub">Gestão Financeira Profissional</div>
     <div class="login-field">
       <label>URL do Google Apps Script</label>
@@ -388,7 +388,7 @@ header{position:sticky;top:0;z-index:40;background:rgba(248,250,252,.82);border-
       <path d="M4 18 L14 11 L20 14 L28 4" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
   </div>
-  <div style="font-size:20px;font-weight:800;letter-spacing:-.03em;color:var(--tx);">FinanceOS</div>
+  <div style="font-size:20px;font-weight:800;letter-spacing:-.03em;color:var(--tx);">AFM FinanceOS</div>
   <div class="brand-tag">Gestão Financeira</div>
   <div class="load-spin"></div>
   <div id="load-msg" style="font-size:13px;color:var(--mut);">Conectando...</div>
@@ -406,7 +406,7 @@ header{position:sticky;top:0;z-index:40;background:rgba(248,250,252,.82);border-
           <path d="M4 18 L14 11 L20 14 L28 4" stroke="rgba(255,255,255,.7)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <span style="font-weight:800;font-size:15px;letter-spacing:-.025em;color:var(--tx);">FinanceOS</span>
+      <span style="font-weight:800;font-size:15px;letter-spacing:-.025em;color:var(--tx);">AFM FinanceOS</span>
     </div>
     <div style="display:flex;gap:6px;align-items:center;">
       <select id="selMes" onchange="onFiltroMes()" class="inp" style="width:auto;padding:7px 12px;font-size:12px;border-radius:40px;">
@@ -565,12 +565,39 @@ header{position:sticky;top:0;z-index:40;background:rgba(248,250,252,.82);border-
     </div>
 
     <!-- Contatos -->
-    <div>
+    <div style="margin-bottom:24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <span class="section-label" style="margin-bottom:0;flex:1;margin-right:8px;">Contatos</span>
         <button onclick="abrirFormContato()" style="font-size:12px;font-weight:700;color:var(--bl);background:rgba(37,99,235,.08);border:1.5px solid rgba(37,99,235,.22);padding:6px 14px;border-radius:40px;cursor:pointer;transition:all .18s;" onmouseover="this.style.background='rgba(37,99,235,.15)'" onmouseout="this.style.background='rgba(37,99,235,.08)'">+ Novo</button>
       </div>
       <div id="lista-contatos" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
+    <!-- Meu Perfil / Dados da Empresa -->
+    <div style="margin-bottom:24px;">
+      <span class="section-label" style="margin-bottom:14px;">🏢 Meu Perfil / Dados da Empresa</span>
+      <div class="sc" style="padding:22px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div style="grid-column:1/-1;">
+            <label class="lbl">Nome / Razão Social</label>
+            <input id="perfil-nome" type="text" placeholder="Ex: João Silva ou Empresa LTDA" class="inp"/>
+          </div>
+          <div>
+            <label class="lbl">CPF / CNPJ</label>
+            <input id="perfil-doc" type="text" placeholder="000.000.000-00" class="inp"/>
+          </div>
+          <div>
+            <label class="lbl">Telefone</label>
+            <input id="perfil-tel" type="tel" placeholder="(00) 00000-0000" class="inp"/>
+          </div>
+          <div style="grid-column:1/-1;">
+            <label class="lbl">Endereço Completo</label>
+            <input id="perfil-end" type="text" placeholder="Rua, Nº, Bairro — Cidade/UF — CEP" class="inp"/>
+          </div>
+        </div>
+        <button class="bp" onclick="salvarPerfilLocal()" style="max-width:260px;">💾 Salvar Perfil</button>
+        <div id="perfil-status" style="margin-top:10px;font-size:12px;color:var(--mut);text-align:center;"></div>
+      </div>
     </div>
   </div>
 </main>
@@ -779,6 +806,13 @@ header{position:sticky;top:0;z-index:40;background:rgba(248,250,252,.82);border-
         Declaro que recebi a importância descrita neste documento, referente ao serviço/produto acima especificado,
         dando plena e irrevogável quitação pelo presente pagamento, para nada mais reclamar a qualquer título.
       </div>
+      <div id="recibo-emissor-info" style="background:var(--surface2);border:1.5px solid var(--brd);border-radius:var(--r-sm);padding:11px 14px;margin-bottom:16px;font-size:11.5px;color:var(--tx2);line-height:1.7;display:none;">
+        <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin-bottom:4px;">Dados do Emissor</div>
+        <div id="recibo-emissor-nome" style="font-weight:700;color:var(--tx);"></div>
+        <div id="recibo-emissor-doc"></div>
+        <div id="recibo-emissor-tel"></div>
+        <div id="recibo-emissor-end"></div>
+      </div>
       <div class="doc-sign">
         <div class="doc-sign-line">Pagador — Data: ____/____/________</div>
         <div class="doc-sign-line" id="recibo-sign-contato">Beneficiário</div>
@@ -917,6 +951,35 @@ function getCfg(){ try{ return JSON.parse(localStorage.getItem('financeos_cfg')|
 function setCfg(o){ try{ localStorage.setItem('financeos_cfg',JSON.stringify(o)); }catch(e){} }
 function getGasUrl(){ return getCfg().gasUrl||''; }
 
+// ══════════════════════════════════════════════════════════════
+//  PERFIL / DADOS DA EMPRESA
+// ══════════════════════════════════════════════════════════════
+function getPerfil(){
+  try{ return JSON.parse(localStorage.getItem('afm_perfil')||'{}'); }catch(e){ return {}; }
+}
+function salvarPerfilLocal(){
+  const perfil={
+    nome: document.getElementById('perfil-nome').value.trim(),
+    doc:  document.getElementById('perfil-doc').value.trim(),
+    tel:  document.getElementById('perfil-tel').value.trim(),
+    end:  document.getElementById('perfil-end').value.trim(),
+  };
+  try{
+    localStorage.setItem('afm_perfil', JSON.stringify(perfil));
+    const st=document.getElementById('perfil-status');
+    if(st){ st.textContent='✓ Perfil salvo com sucesso!'; st.style.color='var(--em)'; setTimeout(()=>st.textContent='',3000); }
+    toast('Perfil salvo!','ok');
+  }catch(e){ toast('Erro ao salvar perfil','err'); }
+}
+function carregarPerfilLocal(){
+  const p=getPerfil();
+  const f=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=v||''; };
+  f('perfil-nome', p.nome);
+  f('perfil-doc',  p.doc);
+  f('perfil-tel',  p.tel);
+  f('perfil-end',  p.end);
+}
+
 function abrirCfg(){
   document.getElementById('cfg-gasurl').value = getGasUrl();
   document.getElementById('cfg-status').textContent = '';
@@ -935,7 +998,7 @@ async function salvarCfg(){
 // ══════════════════════════════════════════════════════════════
 //  AUTH
 // ══════════════════════════════════════════════════════════════
-const FINANCE_USERS=[{ username:'admin', password:'finance123', nome:'Administrador', color:'#059669' }];
+const FINANCE_USERS=[{ username:'aldenir', password:'@RThur20', nome:'Aldenir', color:'#059669' }];
 
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem('financeos_sess')||'null'); }catch(e){ return null; } }
 function setSession(u){ sessionStorage.setItem('financeos_sess',JSON.stringify(u)); currentUser=u; }
@@ -1013,6 +1076,7 @@ async function api(params){
 // ══════════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded',function(){
   popularAnos();
+  carregarPerfilLocal();
   try{ const u=localStorage.getItem('financeos_last_user')||''; if(u) document.getElementById('li-user').value=u; }catch(e){}
   const gasUrl=getGasUrl();
   if(gasUrl) document.getElementById('li-gasurl').value=gasUrl;
@@ -1586,7 +1650,8 @@ function gerarRecibo(id){
   fechar('md');
   const num='REC-'+String(Date.now()).slice(-6);
   const contato=S.contatos.find(c=>c.nome===l.contato)||null;
-  const empresa=currentUser?.empresa||'Minha Empresa';
+  const perfil=getPerfil();
+  const empresa=perfil.nome||currentUser?.empresa||'Minha Empresa';
 
   document.getElementById('recibo-num').textContent=`Nº ${num}`;
   document.getElementById('recibo-valor').textContent=moeda(l.valor);
@@ -1596,9 +1661,21 @@ function gerarRecibo(id){
   document.getElementById('recibo-cat').textContent=l.categoria||'—';
   document.getElementById('recibo-conta').textContent=l.conta||'—';
   document.getElementById('recibo-cc').textContent=l.centroCusto||'—';
-  document.getElementById('recibo-pagador').textContent=empresa;
+  document.getElementById('recibo-pagador').textContent=empresa+(perfil.doc?' — '+perfil.doc:'');
   document.getElementById('recibo-contato').textContent=l.contato||(contato?contato.nome:'—');
   document.getElementById('recibo-sign-contato').textContent=(l.contato||'Beneficiário')+(contato?.documento?' — '+contato.documento:'');
+
+  // Dados do emissor no rodapé
+  const infoBox=document.getElementById('recibo-emissor-info');
+  if(perfil.nome||perfil.tel||perfil.end){
+    document.getElementById('recibo-emissor-nome').textContent=perfil.nome||'';
+    document.getElementById('recibo-emissor-doc').textContent=perfil.doc?'CPF/CNPJ: '+perfil.doc:'';
+    document.getElementById('recibo-emissor-tel').textContent=perfil.tel?'Tel: '+perfil.tel:'';
+    document.getElementById('recibo-emissor-end').textContent=perfil.end?'Endereço: '+perfil.end:'';
+    infoBox.style.display='block';
+  } else {
+    infoBox.style.display='none';
+  }
 
   abrir('m-recibo');
 }
