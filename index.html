@@ -421,6 +421,29 @@ html.dark .afm-login-logo-img{filter:drop-shadow(0 6px 30px rgba(0,200,255,.55))
 .afm-loading-logo-img{width:220px;height:auto;margin:0 auto;display:block;filter:drop-shadow(0 4px 20px rgba(37,99,235,.25));transition:filter .3s;}
 html.dark .afm-loading-logo-img{filter:drop-shadow(0 6px 28px rgba(0,200,255,.60)) brightness(1.1);}
 
+
+/* ── GERENCIAMENTO DE USUÁRIOS ── */
+.user-card{background:var(--surface);border:1.5px solid var(--brd);border-radius:var(--r-md);padding:15px 18px;display:flex;align-items:center;gap:14px;box-shadow:var(--sh-sm);transition:box-shadow .2s,transform .15s;position:relative;overflow:hidden;}
+.user-card:hover{box-shadow:var(--sh-md);transform:translateY(-1px);}
+.user-card-avatar{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:var(--sh-sm);}
+.user-card-info{flex:1;min-width:0;}
+.user-card-name{font-weight:700;font-size:13.5px;color:var(--tx);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-card-meta{font-size:11px;color:var(--mut);display:flex;align-items:center;gap:6px;}
+.user-card-role{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+.role-super{background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(139,92,246,.07));color:var(--pu);border:1px solid rgba(124,58,237,.25);}
+.role-user{background:var(--bl-soft);color:var(--bl);border:1px solid rgba(37,99,235,.20);}
+/* Modal de usuário */
+#m-user .ms{padding:22px 22px 38px;}
+.color-picker-wrap{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.color-dot{width:32px;height:32px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .18s,border-color .18s;flex-shrink:0;}
+.color-dot:hover{transform:scale(1.15);}
+.color-dot.sel{border-color:var(--tx);transform:scale(1.15);}
+.pass-toggle{position:relative;}
+.pass-toggle .inp{padding-right:42px;}
+.pass-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mut);cursor:pointer;padding:4px;display:flex;align-items:center;}
+.pass-eye:hover{color:var(--tx);}
+.pass-eye svg{width:16px;height:16px;}
+
 </style>
 </head>
 <body>
@@ -636,6 +659,16 @@ html.dark .afm-loading-logo-img{filter:drop-shadow(0 6px 28px rgba(0,200,255,.60
       <div id="lista-contatos" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
 
+
+    <!-- Gerenciamento de Usuários (visível apenas para super usuário) -->
+    <div id="secao-usuarios" style="margin-bottom:24px;display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+        <span class="section-label" style="margin-bottom:0;flex:1;margin-right:8px;">👥 Gerenciar Usuários</span>
+        <button onclick="abrirFormUser()" style="font-size:12px;font-weight:700;color:var(--pu);background:rgba(124,58,237,.08);border:1.5px solid rgba(124,58,237,.22);padding:6px 14px;border-radius:40px;cursor:pointer;transition:all .18s;" onmouseover="this.style.background='rgba(124,58,237,.15)'" onmouseout="this.style.background='rgba(124,58,237,.08)'">+ Novo Usuário</button>
+      </div>
+      <div id="lista-usuarios" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
     <!-- Meu Perfil / Dados da Empresa -->
     <div style="margin-bottom:24px;">
       <span class="section-label" style="margin-bottom:14px;">🏢 Meu Perfil / Dados da Empresa</span>
@@ -664,6 +697,87 @@ html.dark .afm-loading-logo-img{filter:drop-shadow(0 6px 28px rgba(0,200,255,.60
     </div>
   </div>
 </main>
+
+
+<!-- ══ MODAL: GERENCIAR USUÁRIO ══ -->
+<div id="m-user" class="mo" onclick="fora(event,'m-user')">
+  <div class="ms">
+    <div class="mh"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <h2 id="m-user-titulo" style="font-size:18px;font-weight:800;letter-spacing:-.025em;color:var(--tx);">Novo Usuário</h2>
+      <button onclick="fechar('m-user')" style="width:33px;height:33px;border-radius:10px;background:var(--surface2);border:1.5px solid var(--brd2);color:var(--tx2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-sm);">×</button>
+    </div>
+    <input type="hidden" id="u-editing-id"/>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+      <div style="grid-column:1/-1;">
+        <label class="lbl">Nome completo</label>
+        <input id="u-nome" type="text" placeholder="Ex: João Silva" class="inp"/>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label class="lbl">Usuário (login)</label>
+        <input id="u-username" type="text" placeholder="Ex: joao.silva" class="inp" oninput="this.value=this.value.toLowerCase().replace(/\s/g,'')"/>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label class="lbl">Senha</label>
+        <div class="pass-toggle">
+          <input id="u-pass" type="password" placeholder="Mínimo 6 caracteres" class="inp"/>
+          <button type="button" class="pass-eye" onclick="togglePassVis('u-pass',this)" title="Ver senha">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="grid-column:1/-1;" id="u-pass-confirm-wrap">
+        <label class="lbl">Confirmar Senha</label>
+        <div class="pass-toggle">
+          <input id="u-pass2" type="password" placeholder="Repita a senha" class="inp"/>
+          <button type="button" class="pass-eye" onclick="togglePassVis('u-pass2',this)" title="Ver senha">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label class="lbl">Perfil de Acesso</label>
+        <select id="u-role" class="inp">
+          <option value="user">Usuário Padrão</option>
+          <option value="super">Super Usuário</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;">
+        <label class="lbl">Cor do Avatar</label>
+        <div class="color-picker-wrap" id="u-color-picker">
+          <div class="color-dot sel" data-color="#059669" style="background:#059669;" onclick="selecionarCor(this)"></div>
+          <div class="color-dot" data-color="#2563eb" style="background:#2563eb;" onclick="selecionarCor(this)"></div>
+          <div class="color-dot" data-color="#7c3aed" style="background:#7c3aed;" onclick="selecionarCor(this)"></div>
+          <div class="color-dot" data-color="#e11d48" style="background:#e11d48;" onclick="selecionarCor(this)"></div>
+          <div class="color-dot" data-color="#d97706" style="background:#d97706;" onclick="selecionarCor(this)"></div>
+          <div class="color-dot" data-color="#0891b2" style="background:#0891b2;" onclick="selecionarCor(this)"></div>
+          <div class="color-dot" data-color="#dc2626" style="background:#dc2626;" onclick="selecionarCor(this)"></div>
+          <div class="color-dot" data-color="#16a34a" style="background:#16a34a;" onclick="selecionarCor(this)"></div>
+        </div>
+        <input type="hidden" id="u-color" value="#059669"/>
+      </div>
+    </div>
+    <div id="u-err" style="background:rgba(225,29,72,.07);border:1.5px solid rgba(225,29,72,.18);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--co);margin-bottom:14px;display:none;"></div>
+    <button class="bp" onclick="salvarUser()" id="bt-salvar-user">✓ Salvar Usuário</button>
+  </div>
+</div>
+
+<!-- ══ MODAL: CONFIRMAR EXCLUSÃO DE USUÁRIO ══ -->
+<div id="m-user-del" class="mo" onclick="fora(event,'m-user-del')">
+  <div class="ms" style="padding:22px 22px 36px;">
+    <div class="mh"></div>
+    <div style="text-align:center;padding:10px 0 20px;">
+      <div style="font-size:2.5rem;margin-bottom:12px;">⚠️</div>
+      <h2 style="font-size:17px;font-weight:800;color:var(--tx);margin-bottom:8px;">Excluir Usuário?</h2>
+      <p style="font-size:13px;color:var(--tx2);line-height:1.6;" id="m-del-msg">Esta ação não pode ser desfeita.</p>
+    </div>
+    <input type="hidden" id="u-del-id"/>
+    <div style="display:flex;gap:10px;">
+      <button class="bg" style="flex:1" onclick="fechar('m-user-del')">Cancelar</button>
+      <button class="bd" style="flex:1" onclick="confirmarExcluirUser()">🗑 Excluir</button>
+    </div>
+  </div>
+</div>
 
 <!-- FAB -->
 <button id="fab" onclick="abrirForm()" title="Novo Lançamento">+</button>
@@ -1059,13 +1173,27 @@ async function salvarCfg(){
 }
 
 // ══════════════════════════════════════════════════════════════
-//  AUTH
+//  AUTH & GERENCIAMENTO DE USUÁRIOS
 // ══════════════════════════════════════════════════════════════
-const FINANCE_USERS=[{ username:'aldenir', password:'@RThur20', nome:'Aldenir', color:'#059669' }];
+const SUPER_USER = { username:'aldenir', password:'@RThur20', nome:'Aldenir', color:'#059669', role:'super', id:'super-root' };
+
+function getUsers(){
+  try{
+    const stored=JSON.parse(localStorage.getItem('afm_users')||'null');
+    if(stored&&stored.length) return stored;
+  }catch(e){}
+  // seed com super usuário na primeira vez
+  const seed=[SUPER_USER];
+  saveUsers(seed);
+  return seed;
+}
+function saveUsers(arr){ try{ localStorage.setItem('afm_users',JSON.stringify(arr)); }catch(e){} }
 
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem('financeos_sess')||'null'); }catch(e){ return null; } }
 function setSession(u){ sessionStorage.setItem('financeos_sess',JSON.stringify(u)); currentUser=u; }
 function clearSession(){ sessionStorage.removeItem('financeos_sess'); currentUser=null; }
+
+function isSuperUser(u){ return (u||currentUser)?.role==='super'||(u||currentUser)?.username==='aldenir'; }
 
 function doLogin(){
   const uname=document.getElementById('li-user').value.trim().toLowerCase();
@@ -1075,7 +1203,8 @@ function doLogin(){
   if(!gasUrl||!gasUrl.startsWith('https://')){
     err.textContent='⚠ Informe a URL do Google Apps Script.'; err.classList.add('show'); return;
   }
-  const user=FINANCE_USERS.find(u=>u.username===uname&&u.password===pass);
+  const users=getUsers();
+  const user=users.find(u=>u.username===uname&&u.password===pass);
   if(!user){
     err.textContent='⚠ Usuário ou senha incorretos.'; err.classList.add('show');
     document.getElementById('li-pass').value=''; return;
@@ -1098,6 +1227,182 @@ function _atualizarBadge(u){
   avatar.style.background=u.color||'#059669';
   nome.textContent=u.nome||u.username;
   badge.style.display='flex';
+}
+
+// ── Renderizar seção de usuários ──
+function renderUsuarios(){
+  const secao=document.getElementById('secao-usuarios');
+  if(!secao) return;
+  // Só exibe para super usuário
+  if(!isSuperUser()){ secao.style.display='none'; return; }
+  secao.style.display='block';
+
+  const lista=document.getElementById('lista-usuarios');
+  const users=getUsers();
+  if(!lista) return;
+
+  lista.innerHTML=users.map(u=>{
+    const isSuper=isSuperUser(u);
+    const isRoot=u.id==='super-root';
+    const roleLabel=isSuper
+      ?'<span class="user-card-role role-super">⭐ Super</span>'
+      :'<span class="user-card-role role-user">👤 Usuário</span>';
+    const editBtn=`<button class="btn-sm" onclick="editarUser('${u.id}')">✏️ Editar</button>`;
+    const delBtn=isRoot?'':`<button class="btn-sm danger" onclick="pedirExcluirUser('${u.id}','${x(u.nome)}')">🗑</button>`;
+    return `<div class="user-card sup">
+      <div class="user-card-avatar" style="background:${u.color||'#059669'};">${(u.nome||u.username||'?')[0].toUpperCase()}</div>
+      <div class="user-card-info">
+        <div class="user-card-name">${x(u.nome||u.username)}</div>
+        <div class="user-card-meta">${roleLabel}<span style="color:var(--brd2);">·</span><span>@${x(u.username)}</span></div>
+      </div>
+      <div class="reg-card-actions">${editBtn}${delBtn}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Abrir formulário ──
+function abrirFormUser(id){
+  const isEdit=!!id;
+  document.getElementById('m-user-titulo').textContent=isEdit?'Editar Usuário':'Novo Usuário';
+  document.getElementById('u-editing-id').value=id||'';
+  document.getElementById('u-nome').value='';
+  document.getElementById('u-username').value='';
+  document.getElementById('u-pass').value='';
+  document.getElementById('u-pass2').value='';
+  document.getElementById('u-role').value='user';
+  document.getElementById('u-err').style.display='none';
+  document.getElementById('u-pass-confirm-wrap').style.display='';
+  // label da senha ao editar
+  const passLabel=document.querySelector('label[for-u-pass]');
+
+  // Resetar cor
+  selecionarCorValor('#059669');
+
+  if(isEdit){
+    const users=getUsers();
+    const u=users.find(k=>k.id===id);
+    if(!u) return;
+    document.getElementById('u-nome').value=u.nome||'';
+    document.getElementById('u-username').value=u.username||'';
+    document.getElementById('u-role').value=u.role||'user';
+    selecionarCorValor(u.color||'#059669');
+    // Ao editar, senha é opcional
+    document.getElementById('u-pass').placeholder='Deixe em branco para manter';
+    document.getElementById('u-pass2').placeholder='Deixe em branco para manter';
+  } else {
+    document.getElementById('u-pass').placeholder='Mínimo 6 caracteres';
+    document.getElementById('u-pass2').placeholder='Repita a senha';
+  }
+  abrir('m-user');
+}
+function editarUser(id){ abrirFormUser(id); }
+
+function selecionarCor(el){
+  document.querySelectorAll('#u-color-picker .color-dot').forEach(d=>d.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('u-color').value=el.dataset.color;
+}
+function selecionarCorValor(cor){
+  let found=false;
+  document.querySelectorAll('#u-color-picker .color-dot').forEach(d=>{
+    d.classList.remove('sel');
+    if(d.dataset.color===cor){ d.classList.add('sel'); found=true; }
+  });
+  if(!found){
+    // selecionar o primeiro como fallback
+    const first=document.querySelector('#u-color-picker .color-dot');
+    if(first) first.classList.add('sel');
+    document.getElementById('u-color').value=cor||'#059669';
+  } else {
+    document.getElementById('u-color').value=cor;
+  }
+}
+
+function togglePassVis(inputId, btn){
+  const inp=document.getElementById(inputId);
+  if(!inp) return;
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.innerHTML=show
+    ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+    :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+}
+
+function salvarUser(){
+  const editId=document.getElementById('u-editing-id').value;
+  const isEdit=!!editId;
+  const nome=document.getElementById('u-nome').value.trim();
+  const username=document.getElementById('u-username').value.trim().toLowerCase();
+  const pass=document.getElementById('u-pass').value;
+  const pass2=document.getElementById('u-pass2').value;
+  const role=document.getElementById('u-role').value;
+  const color=document.getElementById('u-color').value||'#059669';
+  const errEl=document.getElementById('u-err');
+
+  const showErr=(msg)=>{ errEl.textContent=msg; errEl.style.display='block'; };
+
+  if(!nome){ showErr('⚠ Informe o nome completo.'); return; }
+  if(!username||username.length<3){ showErr('⚠ Usuário deve ter ao menos 3 caracteres.'); return; }
+  if(!/^[a-z0-9._]+$/.test(username)){ showErr('⚠ Usuário só pode conter letras, números, ponto e underscore.'); return; }
+
+  const users=getUsers();
+
+  // Verificar duplicidade de username
+  const dup=users.find(u=>u.username===username&&u.id!==editId);
+  if(dup){ showErr('⚠ Este nome de usuário já está em uso.'); return; }
+
+  // Senha
+  let finalPass=null;
+  if(!isEdit||pass){
+    if(!pass){ showErr('⚠ Informe a senha.'); return; }
+    if(pass.length<6){ showErr('⚠ A senha deve ter ao menos 6 caracteres.'); return; }
+    if(pass!==pass2){ showErr('⚠ As senhas não coincidem.'); return; }
+    finalPass=pass;
+  }
+
+  // Não deixar remover papel de super do root
+  if(editId==='super-root'&&role!=='super'){
+    showErr('⚠ O super usuário raiz não pode ter o perfil alterado.'); return;
+  }
+
+  errEl.style.display='none';
+
+  if(isEdit){
+    const idx=users.findIndex(u=>u.id===editId);
+    if(idx<0) return;
+    users[idx].nome=nome;
+    users[idx].username=username;
+    users[idx].role=role;
+    users[idx].color=color;
+    if(finalPass) users[idx].password=finalPass;
+  } else {
+    const newUser={
+      id:'u-'+Date.now(),
+      username, password:finalPass, nome, role, color
+    };
+    users.push(newUser);
+  }
+
+  saveUsers(users);
+  fechar('m-user');
+  toast(isEdit?'Usuário atualizado!':'Usuário criado!','ok');
+  renderUsuarios();
+}
+
+function pedirExcluirUser(id, nome){
+  document.getElementById('u-del-id').value=id;
+  document.getElementById('m-del-msg').textContent=`Deseja excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`;
+  abrir('m-user-del');
+}
+function confirmarExcluirUser(){
+  const id=document.getElementById('u-del-id').value;
+  if(!id||id==='super-root'){ toast('Não é possível excluir o super usuário raiz.','err'); fechar('m-user-del'); return; }
+  let users=getUsers();
+  users=users.filter(u=>u.id!==id);
+  saveUsers(users);
+  fechar('m-user-del');
+  toast('Usuário excluído.','ok');
+  renderUsuarios();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1227,6 +1532,7 @@ function renderTudo(){
   renderContatos();
   atualizarAlertas();
   popularSelects();
+  renderUsuarios();
 }
 
 function filtrados(){
