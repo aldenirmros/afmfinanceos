@@ -1177,24 +1177,81 @@ async function salvarCfg(){
 // ══════════════════════════════════════════════════════════════
 const SUPER_USER = { username:'aldenir', password:'@RThur20', nome:'Aldenir', color:'#059669', role:'super', id:'super-root' };
 
+// ═══════════════════════════════════════════════════════════════
+//  USERS — localStorage (cache) + sincronização com Google Sheets
+// ═══════════════════════════════════════════════════════════════
+
 function getUsers(){
   try{
     const stored=JSON.parse(localStorage.getItem('afm_users')||'null');
     if(stored&&stored.length) return stored;
   }catch(e){}
-  // seed com super usuário na primeira vez
   const seed=[SUPER_USER];
   saveUsers(seed);
   return seed;
 }
-function saveUsers(arr){ try{ localStorage.setItem('afm_users',JSON.stringify(arr)); }catch(e){} }
+function saveUsers(arr){
+  try{ localStorage.setItem('afm_users',JSON.stringify(arr)); }catch(e){}
+}
 
+// Carrega usuários do Sheets e atualiza o cache local
+async function carregarUsersDoSheets(){
+  const gasUrl=getGasUrl();
+  if(!gasUrl) return;
+  try{
+    const r=await fetch(gasUrl+'?action=getUsuarios');
+    const data=await r.json();
+    if(!data.success||!data.usuarios) return;
+
+    // Mescla: mantém senhas do cache local (Sheets não retorna senha)
+    const local=getUsers();
+    const merged=data.usuarios.map(su=>{
+      const loc=local.find(l=>l.id===su.id||l.username===su.username);
+      return {
+        id:      su.id,
+        username:su.username,
+        nome:    su.nome,
+        role:    su.role,
+        color:   su.color,
+        password:loc?.password||''   // senha fica apenas local
+      };
+    });
+    // Garante que super-root local existe no merged
+    if(!merged.find(u=>u.id==='super-root')) merged.unshift(SUPER_USER);
+    saveUsers(merged);
+    renderUsuarios();
+  }catch(e){ console.warn('carregarUsersDoSheets:', e); }
+}
+
+// Envia um usuário ao Sheets (criar ou editar)
+async function _pushUserSheets(userData, isEdit){
+  const gasUrl=getGasUrl();
+  if(!gasUrl) return {success:false, message:'URL GAS não configurada'};
+  const action=isEdit?'atualizarUsuario':'adicionarUsuario';
+  const params=new URLSearchParams({action, ...userData});
+  try{
+    const r=await fetch(gasUrl+'?'+params.toString());
+    return await r.json();
+  }catch(e){ return {success:false, message:e.message}; }
+}
+
+// Exclui usuário no Sheets
+async function _deleteUserSheets(id){
+  const gasUrl=getGasUrl();
+  if(!gasUrl) return {success:false};
+  try{
+    const r=await fetch(gasUrl+'?action=excluirUsuario&id='+encodeURIComponent(id));
+    return await r.json();
+  }catch(e){ return {success:false, message:e.message}; }
+}
+
+// ── Session ──
 function getSession(){ try{ return JSON.parse(sessionStorage.getItem('financeos_sess')||'null'); }catch(e){ return null; } }
 function setSession(u){ sessionStorage.setItem('financeos_sess',JSON.stringify(u)); currentUser=u; }
 function clearSession(){ sessionStorage.removeItem('financeos_sess'); currentUser=null; }
-
 function isSuperUser(u){ return (u||currentUser)?.role==='super'||(u||currentUser)?.username==='aldenir'; }
 
+// ── Login: valida primeiro no cache local, depois sincroniza Sheets ──
 function doLogin(){
   const uname=document.getElementById('li-user').value.trim().toLowerCase();
   const pass=document.getElementById('li-pass').value;
@@ -1216,6 +1273,8 @@ function doLogin(){
   document.getElementById('login-ov').classList.add('hidden');
   _atualizarBadge(user);
   init();
+  // Após login, sincroniza usuários do Sheets em background
+  if(isSuperUser(user)) carregarUsersDoSheets();
 }
 function doLogout(){ clearSession(); location.reload(); }
 function _atualizarBadge(u){
@@ -1229,27 +1288,23 @@ function _atualizarBadge(u){
   badge.style.display='flex';
 }
 
-// ── Renderizar seção de usuários ──
+// ── Renderizar lista ──
 function renderUsuarios(){
   const secao=document.getElementById('secao-usuarios');
   if(!secao) return;
-  // Só exibe para super usuário
   if(!isSuperUser()){ secao.style.display='none'; return; }
   secao.style.display='block';
-
   const lista=document.getElementById('lista-usuarios');
   const users=getUsers();
   if(!lista) return;
-
   lista.innerHTML=users.map(u=>{
-    const isSuper=isSuperUser(u);
     const isRoot=u.id==='super-root';
-    const roleLabel=isSuper
+    const roleLabel=isSuperUser(u)
       ?'<span class="user-card-role role-super">⭐ Super</span>'
       :'<span class="user-card-role role-user">👤 Usuário</span>';
     const editBtn=`<button class="btn-sm" onclick="editarUser('${u.id}')">✏️ Editar</button>`;
     const delBtn=isRoot?'':`<button class="btn-sm danger" onclick="pedirExcluirUser('${u.id}','${x(u.nome)}')">🗑</button>`;
-    return `<div class="user-card sup">
+    return `<div class="user-card">
       <div class="user-card-avatar" style="background:${u.color||'#059669'};">${(u.nome||u.username||'?')[0].toUpperCase()}</div>
       <div class="user-card-info">
         <div class="user-card-name">${x(u.nome||u.username)}</div>
@@ -1260,7 +1315,7 @@ function renderUsuarios(){
   }).join('');
 }
 
-// ── Abrir formulário ──
+// ── Formulário ──
 function abrirFormUser(id){
   const isEdit=!!id;
   document.getElementById('m-user-titulo').textContent=isEdit?'Editar Usuário':'Novo Usuário';
@@ -1271,22 +1326,14 @@ function abrirFormUser(id){
   document.getElementById('u-pass2').value='';
   document.getElementById('u-role').value='user';
   document.getElementById('u-err').style.display='none';
-  document.getElementById('u-pass-confirm-wrap').style.display='';
-  // label da senha ao editar
-  const passLabel=document.querySelector('label[for-u-pass]');
-
-  // Resetar cor
   selecionarCorValor('#059669');
-
   if(isEdit){
-    const users=getUsers();
-    const u=users.find(k=>k.id===id);
+    const u=getUsers().find(k=>k.id===id);
     if(!u) return;
     document.getElementById('u-nome').value=u.nome||'';
     document.getElementById('u-username').value=u.username||'';
     document.getElementById('u-role').value=u.role||'user';
     selecionarCorValor(u.color||'#059669');
-    // Ao editar, senha é opcional
     document.getElementById('u-pass').placeholder='Deixe em branco para manter';
     document.getElementById('u-pass2').placeholder='Deixe em branco para manter';
   } else {
@@ -1308,27 +1355,20 @@ function selecionarCorValor(cor){
     d.classList.remove('sel');
     if(d.dataset.color===cor){ d.classList.add('sel'); found=true; }
   });
-  if(!found){
-    // selecionar o primeiro como fallback
-    const first=document.querySelector('#u-color-picker .color-dot');
-    if(first) first.classList.add('sel');
-    document.getElementById('u-color').value=cor||'#059669';
-  } else {
-    document.getElementById('u-color').value=cor;
-  }
+  if(!found){ const f=document.querySelector('#u-color-picker .color-dot'); if(f) f.classList.add('sel'); }
+  document.getElementById('u-color').value=cor||'#059669';
 }
 
-function togglePassVis(inputId, btn){
-  const inp=document.getElementById(inputId);
-  if(!inp) return;
-  const show=inp.type==='password';
-  inp.type=show?'text':'password';
+function togglePassVis(inputId,btn){
+  const inp=document.getElementById(inputId); if(!inp) return;
+  const show=inp.type==='password'; inp.type=show?'text':'password';
   btn.innerHTML=show
     ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
     :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 }
 
-function salvarUser(){
+// ── Salvar (local + Sheets) ──
+async function salvarUser(){
   const editId=document.getElementById('u-editing-id').value;
   const isEdit=!!editId;
   const nome=document.getElementById('u-nome').value.trim();
@@ -1338,71 +1378,82 @@ function salvarUser(){
   const role=document.getElementById('u-role').value;
   const color=document.getElementById('u-color').value||'#059669';
   const errEl=document.getElementById('u-err');
-
   const showErr=(msg)=>{ errEl.textContent=msg; errEl.style.display='block'; };
 
   if(!nome){ showErr('⚠ Informe o nome completo.'); return; }
   if(!username||username.length<3){ showErr('⚠ Usuário deve ter ao menos 3 caracteres.'); return; }
-  if(!/^[a-z0-9._]+$/.test(username)){ showErr('⚠ Usuário só pode conter letras, números, ponto e underscore.'); return; }
+  if(!/^[a-z0-9._]+$/.test(username)){ showErr('⚠ Só letras, números, ponto e underscore.'); return; }
+  if(editId==='super-root'&&role!=='super'){ showErr('⚠ O perfil do super usuário raiz não pode ser alterado.'); return; }
 
   const users=getUsers();
+  if(users.find(u=>u.username===username&&u.id!==editId)){ showErr('⚠ Nome de usuário já em uso.'); return; }
 
-  // Verificar duplicidade de username
-  const dup=users.find(u=>u.username===username&&u.id!==editId);
-  if(dup){ showErr('⚠ Este nome de usuário já está em uso.'); return; }
-
-  // Senha
   let finalPass=null;
   if(!isEdit||pass){
     if(!pass){ showErr('⚠ Informe a senha.'); return; }
-    if(pass.length<6){ showErr('⚠ A senha deve ter ao menos 6 caracteres.'); return; }
+    if(pass.length<6){ showErr('⚠ Senha com mínimo 6 caracteres.'); return; }
     if(pass!==pass2){ showErr('⚠ As senhas não coincidem.'); return; }
     finalPass=pass;
   }
 
-  // Não deixar remover papel de super do root
-  if(editId==='super-root'&&role!=='super'){
-    showErr('⚠ O super usuário raiz não pode ter o perfil alterado.'); return;
-  }
-
   errEl.style.display='none';
 
+  // 1. Salvar localmente primeiro (resposta imediata)
   if(isEdit){
     const idx=users.findIndex(u=>u.id===editId);
     if(idx<0) return;
-    users[idx].nome=nome;
-    users[idx].username=username;
-    users[idx].role=role;
-    users[idx].color=color;
+    users[idx]={...users[idx], nome, username, role, color};
     if(finalPass) users[idx].password=finalPass;
   } else {
-    const newUser={
-      id:'u-'+Date.now(),
-      username, password:finalPass, nome, role, color
-    };
-    users.push(newUser);
+    users.push({ id:'u-'+Date.now(), username, password:finalPass, nome, role, color });
   }
-
   saveUsers(users);
   fechar('m-user');
-  toast(isEdit?'Usuário atualizado!':'Usuário criado!','ok');
+  toast(isEdit?'Salvando alterações...':'Criando usuário...', 'ok');
   renderUsuarios();
+
+  // 2. Sincronizar com Google Sheets em background
+  const sheetPayload={ id:isEdit?editId:users[users.length-1]?.id, username, nome, role, color };
+  if(finalPass) sheetPayload.password=finalPass;
+
+  const res=await _pushUserSheets(sheetPayload, isEdit);
+  if(res.success){
+    toast(isEdit?'Usuário atualizado no Sheets ✓':'Usuário criado no Sheets ✓','ok');
+    // Se o Sheets gerou um id diferente (novo usuário), atualiza o cache
+    if(!isEdit&&res.id){
+      const u2=getUsers(); const last=u2[u2.length-1];
+      if(last&&last.username===username){ last.id=res.id; saveUsers(u2); }
+    }
+  } else {
+    toast('⚠ Salvo localmente — erro no Sheets: '+(res.message||''),'err');
+  }
 }
 
-function pedirExcluirUser(id, nome){
+// ── Excluir (local + Sheets) ──
+function pedirExcluirUser(id,nome){
   document.getElementById('u-del-id').value=id;
   document.getElementById('m-del-msg').textContent=`Deseja excluir o usuário "${nome}"? Esta ação não pode ser desfeita.`;
   abrir('m-user-del');
 }
-function confirmarExcluirUser(){
+async function confirmarExcluirUser(){
   const id=document.getElementById('u-del-id').value;
   if(!id||id==='super-root'){ toast('Não é possível excluir o super usuário raiz.','err'); fechar('m-user-del'); return; }
+
+  // 1. Remover localmente
   let users=getUsers();
   users=users.filter(u=>u.id!==id);
   saveUsers(users);
   fechar('m-user-del');
-  toast('Usuário excluído.','ok');
+  toast('Removendo usuário...','ok');
   renderUsuarios();
+
+  // 2. Remover no Sheets
+  const res=await _deleteUserSheets(id);
+  if(res.success){
+    toast('Usuário excluído do Sheets ✓','ok');
+  } else {
+    toast('⚠ Removido local — erro no Sheets: '+(res.message||''),'err');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
